@@ -47,10 +47,10 @@ namespace AutoMapper.Extensions.ExpressionMapping.Impl
         public SourceInjectedQueryInspector Inspector { get; set; }
         internal Action<IEnumerable<object>> EnumerationHandler { get; set; }
 
-        public IQueryable CreateQuery(Expression expression) 
+        public IQueryable CreateQuery(Expression expression)
             => new SourceSourceInjectedQuery<TSource, TDestination>(this, expression, EnumerationHandler, _exceptionHandler);
 
-        public IQueryable<TElement> CreateQuery<TElement>(Expression expression) 
+        public IQueryable<TElement> CreateQuery<TElement>(Expression expression)
             => new SourceSourceInjectedQuery<TSource, TElement>(this, expression, EnumerationHandler, _exceptionHandler);
 
         public object Execute(Expression expression)
@@ -99,7 +99,7 @@ namespace AutoMapper.Extensions.ExpressionMapping.Impl
                     var parameters = _parameters ?? new Dictionary<string, object>();
                     var mapExpressions = _mapper.ConfigurationProvider.ExpressionBuilder.GetMapExpression(sourceResult.ElementType, typeof(TDestination), parameters, membersToExpand);
 
-                    destResult = (IQueryable<TDestination>)mapExpressions.Aggregate(sourceResult, Select);
+                    destResult = mapExpressions.Aggregate(sourceResult, Select).Cast<TDestination>();
                 }
                 // case #2: query is arbitrary ("manual") projection
                 // exaple: users.UseAsDataSource().For<UserDto>().Select(user => user.Age).ToList()
@@ -125,12 +125,12 @@ namespace AutoMapper.Extensions.ExpressionMapping.Impl
                 // example: users.UseAsDataSource().For<UserDto>().FirstOrDefault(user => user.Age > 20)
                 else
                 {
-                    /* 
+                    /*
                         in case of an element result (so instead of IQueryable<TResult>, just TResult)
                         we still want to support parameters.
                         This is e.g. the case, when the developer writes "UseAsDataSource().For<TResult>().FirstOrDefault(x => ...)
-                        To still be able to support parameters, we need to create a query from it. 
-                        That said, we need to replace the "element" operator "FirstOrDefault" with a "Where" operator, then apply our "Select" 
+                        To still be able to support parameters, we need to create a query from it.
+                        That said, we need to replace the "element" operator "FirstOrDefault" with a "Where" operator, then apply our "Select"
                         to map from TSource to TResult and finally re-apply the "element" operator ("FirstOrDefault" in our case) so only
                         one element is returned by our "Execute<TResult>" method. Otherwise we'd get an InvalidCastException
 
@@ -158,7 +158,7 @@ namespace AutoMapper.Extensions.ExpressionMapping.Impl
                         /*  in case of primitive element operators (e.g. Any(), Sum()...)
                             we need to map the originating types (e.g. Entity to Dto) in this query
                             as the final value will be projected automatically
-                            
+
                             == example 1 ==
                             UseAsDataSource().For<Dto>().Any(entity => entity.Name == "thename")
                             ..in that case sourceResultType and destResultType would both be "Boolean" which is not mappable for AutoMapper
@@ -270,7 +270,7 @@ namespace AutoMapper.Extensions.ExpressionMapping.Impl
             return !searcher.ContainsElementOperator;
         }
 
-        private static bool IsProjection(Type resultType) 
+        private static bool IsProjection(Type resultType)
             => resultType.IsEnumerableType() && !resultType.IsQueryableType() && resultType != typeof(string);
 
         private static Type CreateSourceResultType(Type destResultType)
